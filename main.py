@@ -92,7 +92,8 @@ def main():
             print(f"Enter {id_} into visualization.ipynb for local vizualization ")
 
             # Store solution locally for visualization
-            with open(f"{game_folder}/{mapName}/{time()}_{id_}.json", "w", encoding="utf8") as f:
+            current_time_epoch = time()
+            with open(f"{game_folder}/{mapName}/{current_time_epoch}_local_{id_}.json", "w", encoding="utf8") as f:
                 json.dump(score, f, indent=4)
 
             # Submit and and get score from Considition app
@@ -103,6 +104,10 @@ def main():
                 print("Successfully submitted game")
                 print(f"id: {scoredSolution[SK.gameId]}")
                 print(f"Score: {scoredSolution[SK.gameScore]}")
+            
+            with open(f"{game_folder}/{mapName}/{current_time_epoch}_global_{scoredSolution[SK.gameId]}.json", "w", encoding="utf8") as f:
+                json.dump(scoredSolution, f, indent=4)
+
 
 
 def example_solution(mapEntity):
