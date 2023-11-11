@@ -1,6 +1,7 @@
 import os
 import json
 from scoring import calculateScore
+from time import time
 from api import getGeneralData, getMapData, submit
 from data_keys import (
     MapNames as MN,
@@ -91,7 +92,7 @@ def main():
             print(f"Enter {id_} into visualization.ipynb for local vizualization ")
 
             # Store solution locally for visualization
-            with open(f"{game_folder}/{mapName}/{id_}.json", "w", encoding="utf8") as f:
+            with open(f"{game_folder}/{mapName}/{time()}_{id_}.json", "w", encoding="utf8") as f:
                 json.dump(score, f, indent=4)
 
             # Submit and and get score from Considition app
