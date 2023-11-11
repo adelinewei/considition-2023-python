@@ -144,7 +144,8 @@ def try_(mapEntity, generalData):
         distribute_scales = 0  # TODO add distributeScales, should be large
         footfall = loc[LK.footfall]  # TODO total footfall for all selected locations should be large
 
-        sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
+        # sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
+        sales_volume = loc[LK.salesVolume]
 
         # dummy solution TODO replace it
         # a x + b y = z
@@ -158,7 +159,7 @@ def try_(mapEntity, generalData):
                 f3_count = 1
                 f9_count = 0
             else:
-                f3_count = 0
+                f3_count = 1
                 f9_count = 0
         else:
             f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
@@ -188,7 +189,7 @@ def try_(mapEntity, generalData):
 
         local_score_exclude_footfall = co2_savings_price + earnings
 
-        if f3_count + f9_count < 1 or ((local_score_exclude_footfall < 0 and footfall < 0.0)):
+        if f3_count + f9_count < 1 or ((local_score_exclude_footfall < 0 and footfall < 0.004)):
 
             not_in_solution[key] = {
                 LK.locationName: loc[LK.locationName],
