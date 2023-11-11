@@ -17,9 +17,6 @@ game_folder = "my_games"
 
 
 def main():
-    if not os.path.exists("my_games"):
-        print(f"Creating folder {game_folder}")
-        os.makedirs(game_folder)
 
     try:
         apiKey = os.environ["apiKey"]
@@ -62,6 +59,11 @@ def main():
             print("Invalid choice.")
 
     if mapName:
+
+        if not os.path.exists(f"{game_folder}/{mapName}"):
+            print(f"Creating folder {game_folder}")
+            os.makedirs(f"{game_folder}/{mapName}")
+
         ##Get map data from Considition endpoint
         mapEntity = getMapData(mapName, apiKey)
 
@@ -89,7 +91,7 @@ def main():
             print(f"Enter {id_} into visualization.ipynb for local vizualization ")
 
             # Store solution locally for visualization
-            with open(f"{game_folder}/{id_}.json", "w", encoding="utf8") as f:
+            with open(f"{game_folder}/{mapName}/{id_}.json", "w", encoding="utf8") as f:
                 json.dump(score, f, indent=4)
 
             # Submit and and get score from Considition app
