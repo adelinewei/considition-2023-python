@@ -198,7 +198,9 @@ def try_(mapEntity, generalData, mapName):
                     f9_count = 0
             else:
                 f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
-                f3_count = (sales_volume % generalData[GK.f9100Data][GK.refillCapacityPerWeek]) // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
+                f9_count = 2 if f9_count > 2 else f9_count
+                f3_count = (sales_volume - f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]) // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
+                f3_count = 2 if f3_count > 2 else f3_count
 
             # validation
             sales_capacity = \
