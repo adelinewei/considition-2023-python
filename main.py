@@ -1,3 +1,4 @@
+import datetime
 import os
 import json
 from scoring import calculateScore
@@ -124,7 +125,12 @@ def main():
             print(f"Enter {id_} into visualization.ipynb for local vizualization ")
 
             # Store solution locally for visualization
-            with open(f"{game_folder}\{id_}.json", "w", encoding="utf8") as f:
+            if not os.path.exists(f'{game_folder}/{mapName}'):
+                print(f'Creating folder {game_folder}/{mapName}')
+                os.makedirs(f'{game_folder}/{mapName}')
+
+            current_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            with open(f'{game_folder}/{mapName}/{current_datetime}_{id_}.json', 'w', encoding='utf8') as f:
                 json.dump(score, f, indent=4)
 
             # Submit and and get score from Considition app
