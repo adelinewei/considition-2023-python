@@ -24,7 +24,7 @@ def main():
 
     try:
         apiKey = os.environ["apiKey"]
-    except Exception as e:
+    except Exception:
         raise SystemExit("Did you forget to create a .env file with the apiKey?")
 
     # User selct a map name
@@ -74,16 +74,15 @@ def main():
             print(f"Creating folder {game_folder}")
             os.makedirs(f"{game_folder}/{mapName}")
 
-        ##Get map data from Considition endpoint
+        # Get map data from Considition endpoint
         mapEntity = getMapData(mapName, apiKey)
-
-        # print(json.dumps(mapEntity, indent=2))
         # with open(f'data/{mapName}', 'w') as f:
         #     f.writelines(json.dumps(mapEntity, indent=2))
-        # return
 
-        ##Get non map specific data from Considition endpoint
+        # Get non map specific data from Considition endpoint
         generalData = getGeneralData()
+        # with open(f'data/generalData', 'w') as f:
+        #     f.writelines(json.dumps(generalData, indent=2))
 
         if mapEntity and generalData:
             # ------------------------------------------------------------
@@ -93,20 +92,20 @@ def main():
             # ----------------End of player code--------------------------
             # ------------------------------------------------------------
 
-            # Score solution locally
+            print("\n===== Score solution locally =====")
             score = calculateScore(mapName, solution, mapEntity, generalData)
 
             id_ = score[SK.gameId]
-            print(f"Storing  game with id {id_}.")
-            print(f"Enter {id_} into visualization.ipynb for local vizualization ")
+            print(f"Local id: {score[SK.gameId]}")
+            print(f"Local score: {score[SK.gameScore]}")
 
             # Store solution locally for visualization
             current_time_epoch = time()
             with open(f"{game_folder}/{mapName}/{current_time_epoch}_local_{id_}.json", "w", encoding="utf8") as f:
                 json.dump(score, f, indent=4)
 
-            # Submit and and get score from Considition app
-            print(f"Submitting solution to Considtion 2023 \n")
+            print("\n===== Submit and and get score from Considition app =====")
+            print("Submitting solution to Considtion 2023")
 
             scoredSolution = submit(mapName, solution, apiKey)
             if scoredSolution:
@@ -269,12 +268,6 @@ def try_(mapEntity, generalData, mapName):
                     LK.salesVolume: loc[LK.salesVolume] * generalData[GK.refillSalesFactor],
                 }
                 continue
-
-            # print("key----------------------------", key)
-            # print(f"#f9: {f9_count}, #f3: {f3_count}")
-            # print("local_score_exclude_footfall:", local_score_exclude_footfall)
-            # print("co2_savings_price:", co2_savings_price)
-            # print("earnings", earnings)
 
             # add to solution dict
             solution[LK.locations][key] = {
