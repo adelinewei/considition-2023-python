@@ -167,27 +167,13 @@ def try_(mapEntity, generalData, mapName):
         for key in mapEntity[LK.locations]:
             loc = mapEntity[LK.locations][key]
 
-            # solution logic TODO
-            # TODO check relation between salse volumn and 1f9 capacity for each locqtions. 
-            # TODO check relation between local footfall and sales local volumn - > might effect the solution logic
-            # TODO if a location has little salse volume but a lot footfall, it's still a good locaton to set the f machines
-            # goal: salesCapacity close (>=?, depends on leasing cost) to sales volumn as much as possible
-            # maxima (salse) revenue, co2_saving total footfall for all selected locations
+            # goal: salesCapacity close (or >=) to sales volumn as much as possible
+            # maxima (salse) revenue, co2_saving, total footfall for all selected locations
             # minima leasing cost
 
             distribute_scales = 0  # TODO add distributeScales, should be large
-            footfall = loc[LK.footfall]  # TODO total footfall for all selected locations should be large
-
             sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
-            # sales_volume = loc[LK.salesVolume]
 
-            # dummy solution TODO replace it
-            # a x + b y = z
-            # a: f3_count = z - by / x
-            # b: f9_count, b < -(y - z) /y ?
-            # z: sales_volume
-            # x: f3_cap, y: f9_cap
-            # TODO should use sales_volume, not loc[LK.salesVolume]
             if sales_volume < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
                 f3_count = 1
                 f9_count = 0
@@ -204,58 +190,28 @@ def try_(mapEntity, generalData, mapName):
                 #     f9_count += 1
                 #     f3_count = 0
                 if f9_count < 2 and f3_count == 2:
-                    # f9 * 1
-                    temp_revenue_f9 = rest_volume * generalData[GK.refillUnitData][GK.profitPerUnit]
-                    temp_l_cost_f9 = 1 * generalData[GK.f9100Data][GK.leasingCostPerWeek]
-                    temp_earning_f9 = temp_revenue_f9 - temp_l_cost_f9
+                    # if replace 2 f3s by 1 f9
+                    temp_score_f9 = calculate_local_score(
+                        f3_count=0,
+                        f9_count=1,
+                        generalData=generalData,
+                        sales_volume=rest_volume)
 
-                    temp_co2_saving_f9 = rest_volume * (
-                        generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
-                        - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
-                    ) - (1 * generalData[GK.f9100Data][GK.staticCo2]) / 1000
-
-                    temp_result_f9 = temp_earning_f9 + temp_co2_saving_f9
-
-                    # f3 * n
+                    # if keep setting 2 f3s
                     rest_volume = min(round(rest_volume, 4), (f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]))
-                    temp_revenue_f3 = rest_volume * generalData[GK.refillUnitData][GK.profitPerUnit]
-                    temp_l_cost_f3 = f3_count * generalData[GK.f3100Data][GK.leasingCostPerWeek]
-                    temp_earning_f3 = temp_revenue_f3 - temp_l_cost_f3
+                    temp_score_f3 = calculate_local_score(
+                        f3_count=2,
+                        f9_count=0,
+                        generalData=generalData,
+                        sales_volume=rest_volume)
 
-                    temp_co2_saving_f3 = rest_volume * (
-                        generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
-                        - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
-                    ) - (f3_count * generalData[GK.f3100Data][GK.staticCo2]) / 1000
-
-                    temp_result_f3 = temp_earning_f3 + temp_co2_saving_f3
-
-                    if temp_result_f9 > temp_result_f3:
+                    # replace 2 f3s by 1 f9 if it increase the local score
+                    if temp_score_f9 > temp_score_f3:
                         f9_count += 1
                         f3_count = 0
 
             # validation
-            sales_capacity = \
-                f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek] \
-                + f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
-
-            sales = min(round(sales_volume, 4), sales_capacity)
-            revenue = sales * generalData[GK.refillUnitData][GK.profitPerUnit]
-            leasing_cost = \
-                f3_count * generalData[GK.f3100Data][GK.leasingCostPerWeek] \
-                + f9_count * generalData[GK.f9100Data][GK.leasingCostPerWeek]
-            earnings = revenue - leasing_cost
-            co2_savings = sales \
-                * (
-                    generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
-                    - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
-                ) / 1000
-            co2_savings_rating = co2_savings - \
-                f3_count * generalData[GK.f3100Data][GK.staticCo2] / 1000 \
-                - f9_count * generalData[GK.f9100Data][GK.staticCo2] / 1000
-
-            co2_savings_price = co2_savings_rating * generalData[GK.co2PricePerKiloInSek]
-
-            local_score_exclude_footfall = co2_savings_price + earnings
+            local_score_exclude_footfall = calculate_local_score(f3_count, f9_count, generalData, sales_volume)
 
             if f3_count + f9_count < 1 or (local_score_exclude_footfall < 0):
 
@@ -274,6 +230,7 @@ def try_(mapEntity, generalData, mapName):
                 LK.f9100Count: int(f9_count),
                 LK.f3100Count: int(f3_count),
             }
+
     else:
         print("======== Sandbox ========")
         hotspot1 = mapEntity[HK.hotspots][0]
@@ -300,6 +257,36 @@ def try_(mapEntity, generalData, mapName):
         }
 
     return solution
+
+
+def calculate_local_score(f3_count, f9_count, generalData, sales_volume):
+    # calculate earnings
+    sales_capacity = \
+        f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek] + \
+        f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
+    sales = min(round(sales_volume, 4), sales_capacity)
+
+    revenue = sales * generalData[GK.refillUnitData][GK.profitPerUnit]
+    leasing_cost = \
+        f3_count * generalData[GK.f3100Data][GK.leasingCostPerWeek] + \
+        f9_count * generalData[GK.f9100Data][GK.leasingCostPerWeek]
+
+    earnings = revenue - leasing_cost
+
+    # calculate co2 saving price
+    co2_savings = \
+        sales * (generalData[GK.classicUnitData][GK.co2PerUnitInGrams] - generalData[GK.refillUnitData][GK.co2PerUnitInGrams])
+    co2_cost = \
+        f3_count * generalData[GK.f3100Data][GK.staticCo2] + \
+        f9_count * generalData[GK.f9100Data][GK.staticCo2]
+
+    co2_savings_balance = co2_savings - co2_cost
+    co2_savings_price = (co2_savings_balance / 1000) * generalData[GK.co2PricePerKiloInSek]
+
+    # calculate local score (exclude footfall)
+    local_score_exclude_footfall = co2_savings_price + earnings
+
+    return local_score_exclude_footfall
 
 
 if __name__ == "__main__":
