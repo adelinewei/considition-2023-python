@@ -158,6 +158,9 @@ def example_solution(mapEntity, generalData, mapName):
 
 
 def try_(mapEntity, generalData, mapName):
+    # goal: salesCapacity close (or >=) to sales volumn as much as possible
+    # maxima (salse) revenue, co2_saving, total footfall for all selected locations
+    # minima leasing cost
 
     max_number_of_f9100 = 2  # based on the rule
     max_number_of_f3100 = 2  # based on the rule
@@ -169,10 +172,6 @@ def try_(mapEntity, generalData, mapName):
 
         for key in mapEntity[LK.locations]:
             loc = mapEntity[LK.locations][key]
-
-            # goal: salesCapacity close (or >=) to sales volumn as much as possible
-            # maxima (salse) revenue, co2_saving, total footfall for all selected locations
-            # minima leasing cost
 
             distribute_scales = 0  # TODO add distributeScales, should be large
             sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
