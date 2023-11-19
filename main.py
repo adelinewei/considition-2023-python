@@ -14,6 +14,7 @@ from data_keys import (
     CoordinateKeys as CK,
 )
 from dotenv import load_dotenv
+import math
 
 load_dotenv()
 apiKey = os.environ["apiKey"]
@@ -88,7 +89,8 @@ def main():
             # ------------------------------------------------------------
             # ----------------Player Algorithm goes here------------------
             # solution = example_solution(mapEntity, generalData, mapName)
-            solution = try_1(mapEntity, generalData, mapName)
+            # solution = try_1(mapEntity, generalData, mapName)
+            solution = try_2(mapEntity, generalData, mapName)
             # ----------------End of player code--------------------------
             # ------------------------------------------------------------
 
@@ -224,6 +226,155 @@ def try_1(mapEntity, generalData, mapName):
     return solution
 
 
+def try_2(mapEntity, generalData, mapName):
+    # goal: salesCapacity close (or >=) to sales volumn as much as possible
+    # maxima (salse) revenue, co2_saving, total footfall for all selected locations
+    # minima leasing cost
+
+    max_number_of_f9100 = 2  # based on the rule
+    max_number_of_f3100 = 2  # based on the rule
+
+    solution = {LK.locations: {}}
+
+
+    #########
+    #########
+
+    # step 1 - set machine or not
+    set_machine_dict = {}
+    for curr_location in mapEntity[LK.locations].values():
+
+        if curr_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
+
+            big_candidate_list = []
+            small_candidate_list = []
+            for candidate_location in mapEntity[LK.locations].values():
+                distance = distanceBetweenPoint(
+                    curr_location[CK.latitude],
+                    curr_location[CK.longitude],
+                    candidate_location[CK.latitude],
+                    candidate_location[CK.longitude]
+                )
+                if distance < generalData[GK.willingnessToTravelInMeters]:
+                    if candidate_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
+                        small_candidate_list.append(candidate_location[LK.locationName])
+                    else:
+                        big_candidate_list.append(candidate_location[LK.locationName])
+
+            if len(big_candidate_list) > 0:
+                set_machine_dict[curr_location[LK.locationName]] = False
+            elif len(small_candidate_list) > 0:
+                # set_machine_dict[curr_location[LK.locationName]] = True
+                for location_name in small_candidate_list:
+                    if set_machine_dict.get(location_name):
+                        set_machine_dict[curr_location[LK.locationName]] = False
+                        break
+                    else:
+                        set_machine_dict[curr_location[LK.locationName]] = True
+                
+            else:
+                set_machine_dict[curr_location[LK.locationName]] = True
+
+        else:
+            set_machine_dict[curr_location[LK.locationName]] = True
+
+    # step 2 - re-calculate sales volume
+    locationListNoRefillStation = {}
+    locationListWithRefillStation = {}
+    for key in mapEntity[LK.locations]:
+        loc = mapEntity[LK.locations][key]
+        if set_machine_dict[key]:
+            locationListWithRefillStation[key] = {
+                LK.locationName: loc[LK.locationName],
+                LK.locationType: loc[LK.locationType],
+                CK.latitude: loc[CK.latitude],
+                CK.longitude: loc[CK.longitude],
+                LK.footfall: loc[LK.footfall],
+                LK.salesVolume: loc[LK.salesVolume] * generalData[GK.refillSalesFactor]
+            }
+
+        else:
+            locationListNoRefillStation[key] = {
+                LK.locationName: loc[LK.locationName],
+                LK.locationType: loc[LK.locationType],
+                CK.latitude: loc[CK.latitude],
+                CK.longitude: loc[CK.longitude],
+                LK.footfall: loc[LK.footfall],
+                LK.salesVolume: loc[LK.salesVolume] * generalData[GK.refillSalesFactor],
+            }
+
+    locationListWithRefillStation = distributeSales(
+        locationListWithRefillStation, locationListNoRefillStation, generalData
+    )
+
+    #########
+    #########
+
+    for key in locationListWithRefillStation:
+        loc = locationListWithRefillStation[key]
+        sales_volume = loc[LK.salesVolume]
+
+        if loc[LK.salesVolume] < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
+            f3_count = 1
+            f9_count = 0
+        else:
+
+            f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
+            f9_count = max_number_of_f9100 if f9_count > max_number_of_f9100 else f9_count
+
+            rest_volume = sales_volume - f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
+
+            f3_count = rest_volume // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
+            f3_count = max_number_of_f3100 if f3_count > max_number_of_f3100 else f3_count
+
+            # if f9_count < 2 and f3_count == 2:
+            #     f9_count += 1
+            #     f3_count = 0
+            if f9_count < max_number_of_f9100:
+                # if replace n f3s by 1 f9
+                temp_score_f9 = calculate_local_score(
+                    f3_count=0,
+                    f9_count=1,
+                    generalData=generalData,
+                    sales_volume=rest_volume)
+
+                # if keep setting n f3s (n <= max_number_of_f3100)
+                rest_volume = min(round(rest_volume, 4), (f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]))
+                temp_score_f3 = calculate_local_score(
+                    f3_count=f3_count,
+                    f9_count=0,
+                    generalData=generalData,
+                    sales_volume=rest_volume)
+
+                # replace n f3s by 1 f9 if it increase the local score
+                if temp_score_f9 > temp_score_f3:
+                    f9_count += 1
+                    f3_count = 0
+                else:
+                    rest_volume = min(round(rest_volume, 4), (f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]))
+                    temp_score_f3_plus = calculate_local_score(
+                        f3_count=f3_count + 1,
+                        f9_count=0,
+                        generalData=generalData,
+                        sales_volume=rest_volume)
+                    if temp_score_f3_plus > temp_score_f3:
+                        f3_count += 1
+
+        # validation
+        local_score_exclude_footfall = calculate_local_score(f3_count, f9_count, generalData, sales_volume)
+
+        if local_score_exclude_footfall < 0:
+            continue
+
+        # add to solution dict
+        solution[LK.locations][key] = {
+            LK.f9100Count: int(f9_count),
+            LK.f3100Count: int(f3_count),
+        }
+
+    return solution
+
+
 def calculate_local_score(f3_count, f9_count, generalData, sales_volume):
     # calculate earnings
     sales_capacity = \
@@ -252,6 +403,63 @@ def calculate_local_score(f3_count, f9_count, generalData, sales_volume):
     local_score_exclude_footfall = co2_savings_price + earnings
 
     return local_score_exclude_footfall
+
+
+def distanceBetweenPoint(lat_1, long_1, lat_2, long_2) -> int:
+    R = 6371e3
+    φ1 = lat_1 * math.pi / 180  #  φ, λ in radians
+    φ2 = lat_2 * math.pi / 180
+    Δφ = (lat_2 - lat_1) * math.pi / 180
+    Δλ = (long_2 - long_1) * math.pi / 180
+
+    a = math.sin(Δφ / 2) * math.sin(Δφ / 2) + math.cos(φ1) * math.cos(φ2) * math.sin(
+        Δλ / 2
+    ) * math.sin(Δλ / 2)
+
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    d = R * c
+
+    return round(d, 0)
+
+
+def distributeSales(with_, without, generalData):
+    for key_without in without:
+        distributeSalesTo = {}
+        loc_without = without[key_without]
+
+        for key_with_ in with_:
+            distance = distanceBetweenPoint(
+                loc_without[CK.latitude],
+                loc_without[CK.longitude],
+                with_[key_with_][CK.latitude],
+                with_[key_with_][CK.longitude],
+            )
+            if distance < generalData[GK.willingnessToTravelInMeters]:
+                distributeSalesTo[with_[key_with_][LK.locationName]] = distance
+
+        total = 0
+        if distributeSalesTo:
+            for key_temp in distributeSalesTo:
+                distributeSalesTo[key_temp] = (
+                    math.pow(
+                        generalData[GK.constantExpDistributionFunction],
+                        generalData[GK.willingnessToTravelInMeters]
+                        - distributeSalesTo[key_temp],
+                    )
+                    - 1
+                )
+                total += distributeSalesTo[key_temp]
+
+            for key_temp in distributeSalesTo:
+                with_[key_temp][LK.salesVolume] += (
+                    distributeSalesTo[key_temp]
+                    / total
+                    * generalData[GK.refillDistributionRate]
+                    * loc_without[LK.salesVolume]
+                )
+
+    return with_
 
 
 if __name__ == "__main__":
