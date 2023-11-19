@@ -150,51 +150,46 @@ def try_(mapEntity, generalData, mapName):
 
 
             if (f9_count < 2) and (f3_count == 2):
-                f3_count = 0
-                f9_count += 1
                 # Two f3s
-                # f3_sales_capacity = \
-                #     f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek] * 2
-                # f3_sales = min(round(sales_volume, 0), f3_sales_capacity)
-                # f3_revenue = f3_sales * generalData[GK.refillUnitData][GK.profitPerUnit]
-                # f3_leasing_cost = \
-                #     generalData[GK.f3100Data][GK.leasingCostPerWeek] * 2
-                # f3_earnings = f3_revenue - f3_leasing_cost
-                # f3_co2_savings = f3_sales \
-                #     * (
-                #         generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
-                #         - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
-                #     ) / 1000
-                # f3_co2_savings_rating = f3_co2_savings - \
-                #     2 * generalData[GK.f3100Data][GK.staticCo2] / 1000 \
-                #     - 1 * generalData[GK.f9100Data][GK.staticCo2] / 1000
+                f3_sales_capacity = \
+                    f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]
+                f3_sales = min(round(sales_volume, 0), f3_sales_capacity)
+                f3_revenue = f3_sales * generalData[GK.refillUnitData][GK.profitPerUnit]
+                f3_leasing_cost = \
+                    generalData[GK.f3100Data][GK.leasingCostPerWeek] * 2
+                f3_earnings = f3_revenue - f3_leasing_cost
+                f3_co2_savings = f3_sales \
+                    * (
+                        generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
+                        - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
+                    ) / 1000
+                f3_co2_savings_rating = f3_co2_savings - f3_count * generalData[GK.f3100Data][GK.staticCo2] / 1000
 
-                # f3_co2_savings_price = f3_co2_savings_rating * generalData[GK.co2PricePerKiloInSek]
-                # f3_total = f3_co2_savings_price + f3_earnings
+                f3_co2_savings_price = f3_co2_savings_rating * generalData[GK.co2PricePerKiloInSek]
+                f3_total = f3_co2_savings_price + f3_earnings
 
-                # # One f9
-                # f9_sales_capacity = \
-                #     f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
-                # f9_sales = min(round(sales_volume, 0), f9_sales_capacity)
-                # f9_revenue = f9_sales * generalData[GK.refillUnitData][GK.profitPerUnit]
-                # f9_leasing_cost = \
-                #     generalData[GK.f9100Data][GK.leasingCostPerWeek]
-                # f9_earnings = f9_revenue - f9_leasing_cost
-                # f9_co2_savings = f9_sales \
-                #     * (
-                #         generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
-                #         - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
-                #     ) / 1000
-                # f9_co2_savings_rating = f9_co2_savings - \
-                #     2 * generalData[GK.f3100Data][GK.staticCo2] / 1000 \
-                #     - 1 * generalData[GK.f9100Data][GK.staticCo2] / 1000
-                # f9_total = f9_co2_savings_rating + f9_earnings
+                # One f9
+                f9_sales_capacity = \
+                    1 * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
+                f9_sales = min(round(sales_volume, 0), f9_sales_capacity)
+                f9_revenue = f9_sales * generalData[GK.refillUnitData][GK.profitPerUnit]
+                f9_leasing_cost = \
+                    generalData[GK.f9100Data][GK.leasingCostPerWeek]
+                f9_earnings = f9_revenue - f9_leasing_cost
+                f9_co2_savings = f9_sales \
+                    * (
+                        generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
+                        - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
+                    ) / 1000
+                f9_co2_savings_rating = f9_co2_savings - \
+                    - 1 * generalData[GK.f9100Data][GK.staticCo2] / 1000
+                f9_total = f9_co2_savings_rating + f9_earnings
 
-                # print(f'f9_earnings: {f9_earnings}')
-                # print(f'f3_total: {f3_total}')
-                # if f9_total > f3_total:
-                #     f3_count = 0
-                #     f9_count += 1
+                print(f'f9_total: {f9_total}')
+                print(f'f3_total: {f3_total}')
+                if f9_total > f3_total:
+                    f3_count = 0
+                    f9_count += 1
 
 
             # validation
