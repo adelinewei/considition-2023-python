@@ -264,14 +264,26 @@ def try_2(mapEntity, generalData, mapName):
             if len(big_candidate_list) > 0:
                 set_machine_dict[curr_location[LK.locationName]] = False
             elif len(small_candidate_list) > 0:
+                pass
                 # set_machine_dict[curr_location[LK.locationName]] = True
-                for location_name in small_candidate_list:
-                    if set_machine_dict.get(location_name):
-                        set_machine_dict[curr_location[LK.locationName]] = False
-                        break
-                    else:
-                        set_machine_dict[curr_location[LK.locationName]] = True
-                
+
+                # for location_name in small_candidate_list:
+                #     if set_machine_dict.get(location_name):
+                #         set_machine_dict[curr_location[LK.locationName]] = False
+                #         break
+                #     else:
+                #         set_machine_dict[curr_location[LK.locationName]] = True
+                small_candidate_list.append(curr_location[LK.locationName])
+                sorted_small_candidate_list = sorted(
+                    small_candidate_list,
+                    key=lambda loc_name: mapEntity[LK.locations][loc_name][LK.footfall],
+                    reverse=True
+                )
+                set_machine_dict[sorted_small_candidate_list[0]] = True
+                if sorted_small_candidate_list[0] != curr_location[LK.locationName]:
+                    set_machine_dict[curr_location[LK.locationName]] = False
+
+
             else:
                 set_machine_dict[curr_location[LK.locationName]] = True
 
