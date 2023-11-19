@@ -88,8 +88,8 @@ def main():
         if mapEntity and generalData:
             # ------------------------------------------------------------
             # ----------------Player Algorithm goes here------------------
-            solution = example_solution(mapEntity, mapName)
-            # solution = try_(mapEntity, generalData)
+            # solution = example_solution(mapEntity, generalData, mapName)
+            solution = try_(mapEntity, generalData, mapName)
             # ----------------End of player code--------------------------
             # ------------------------------------------------------------
 
@@ -117,7 +117,7 @@ def main():
                     json.dump(scoredSolution, f, indent=4)
 
 
-def example_solution(mapEntity, mapName):
+def example_solution(mapEntity, generalData, mapName):
     solution = {LK.locations: {}}
 
     if mapName not in [MN.sSandbox, MN.gSandbox]:
@@ -132,6 +132,7 @@ def example_solution(mapEntity, mapName):
                     LK.f3100Count: 0,
                 }
     else:
+        print("======== Sandbox ========")
         hotspot1 = mapEntity[HK.hotspots][0]
         hotspot2 = mapEntity[HK.hotspots][1]
 
@@ -157,92 +158,118 @@ def example_solution(mapEntity, mapName):
     return solution
 
 
-def try_(mapEntity, generalData):
+def try_(mapEntity, generalData, mapName):
 
     solution = {LK.locations: {}}
     not_in_solution = {LK.locations: {}}
 
-    for key in mapEntity[LK.locations]:
-        loc = mapEntity[LK.locations][key]
+    if mapName not in [MN.sSandbox, MN.gSandbox]:
 
-        # solution logic TODO
-        # TODO check relation between salse volumn and 1f9 capacity for each locqtions. 
-        # TODO check relation between local footfall and sales local volumn - > might effect the solution logic
-        # TODO if a location has little salse volume but a lot footfall, it's still a good locaton to set the f machines
-        # goal: salesCapacity close (>=?, depends on leasing cost) to sales volumn as much as possible
-        # maxima (salse) revenue, co2_saving total footfall for all selected locations
-        # minima leasing cost
+        for key in mapEntity[LK.locations]:
+            loc = mapEntity[LK.locations][key]
 
-        distribute_scales = 0  # TODO add distributeScales, should be large
-        footfall = loc[LK.footfall]  # TODO total footfall for all selected locations should be large
+            # solution logic TODO
+            # TODO check relation between salse volumn and 1f9 capacity for each locqtions. 
+            # TODO check relation between local footfall and sales local volumn - > might effect the solution logic
+            # TODO if a location has little salse volume but a lot footfall, it's still a good locaton to set the f machines
+            # goal: salesCapacity close (>=?, depends on leasing cost) to sales volumn as much as possible
+            # maxima (salse) revenue, co2_saving total footfall for all selected locations
+            # minima leasing cost
 
-        # sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
-        sales_volume = loc[LK.salesVolume]
+            distribute_scales = 0  # TODO add distributeScales, should be large
+            footfall = loc[LK.footfall]  # TODO total footfall for all selected locations should be large
 
-        # dummy solution TODO replace it
-        # a x + b y = z
-        # a: f3_count = z - by / x
-        # b: f9_count, b < -(y - z) /y ?
-        # z: sales_volume
-        # x: f3_cap, y: f9_cap
-        # TODO should use sales_volume, not loc[LK.salesVolume]
-        if sales_volume < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
-            if footfall > 0:
-                f3_count = 1
-                f9_count = 0
+            # sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
+            sales_volume = loc[LK.salesVolume]
+
+            # dummy solution TODO replace it
+            # a x + b y = z
+            # a: f3_count = z - by / x
+            # b: f9_count, b < -(y - z) /y ?
+            # z: sales_volume
+            # x: f3_cap, y: f9_cap
+            # TODO should use sales_volume, not loc[LK.salesVolume]
+            if sales_volume < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
+                if footfall > 0:
+                    f3_count = 1
+                    f9_count = 0
+                else:
+                    f3_count = 1
+                    f9_count = 0
             else:
-                f3_count = 1
-                f9_count = 0
-        else:
-            f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
-            f3_count = (sales_volume % generalData[GK.f9100Data][GK.refillCapacityPerWeek]) // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
+                f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
+                f3_count = (sales_volume % generalData[GK.f9100Data][GK.refillCapacityPerWeek]) // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
 
-        # validation
-        sales_capacity = \
-            f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek] \
-            + f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
+            # validation
+            sales_capacity = \
+                f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek] \
+                + f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
 
-        sales = min(round(sales_volume, 0), sales_capacity)
-        revenue = sales * generalData[GK.refillUnitData][GK.profitPerUnit]
-        leasing_cost = \
-            f3_count * generalData[GK.f3100Data][GK.leasingCostPerWeek] \
-            + f9_count * generalData[GK.f9100Data][GK.leasingCostPerWeek]
-        earnings = revenue - leasing_cost
-        co2_savings = sales \
-            * (
-                generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
-                - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
-            ) / 1000
-        co2_savings_rating = co2_savings - \
-            f3_count * generalData[GK.f3100Data][GK.staticCo2] / 1000 \
-            - f9_count * generalData[GK.f9100Data][GK.staticCo2] / 1000
+            sales = min(round(sales_volume, 0), sales_capacity)
+            revenue = sales * generalData[GK.refillUnitData][GK.profitPerUnit]
+            leasing_cost = \
+                f3_count * generalData[GK.f3100Data][GK.leasingCostPerWeek] \
+                + f9_count * generalData[GK.f9100Data][GK.leasingCostPerWeek]
+            earnings = revenue - leasing_cost
+            co2_savings = sales \
+                * (
+                    generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
+                    - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
+                ) / 1000
+            co2_savings_rating = co2_savings - \
+                f3_count * generalData[GK.f3100Data][GK.staticCo2] / 1000 \
+                - f9_count * generalData[GK.f9100Data][GK.staticCo2] / 1000
 
-        co2_savings_price = co2_savings_rating * generalData[GK.co2PricePerKiloInSek]
+            co2_savings_price = co2_savings_rating * generalData[GK.co2PricePerKiloInSek]
 
-        local_score_exclude_footfall = co2_savings_price + earnings
+            local_score_exclude_footfall = co2_savings_price + earnings
 
-        if f3_count + f9_count < 1 or ((local_score_exclude_footfall < 0 and footfall < 0.004)):
+            if f3_count + f9_count < 1 or ((local_score_exclude_footfall < 0 and footfall < 0.004)):
 
-            not_in_solution[key] = {
-                LK.locationName: loc[LK.locationName],
-                LK.locationType: loc[LK.locationType],
-                CK.latitude: loc[CK.latitude],
-                CK.longitude: loc[CK.longitude],
-                LK.footfall: loc[LK.footfall],
-                LK.salesVolume: loc[LK.salesVolume] * generalData[GK.refillSalesFactor],
+                not_in_solution[key] = {
+                    LK.locationName: loc[LK.locationName],
+                    LK.locationType: loc[LK.locationType],
+                    CK.latitude: loc[CK.latitude],
+                    CK.longitude: loc[CK.longitude],
+                    LK.footfall: loc[LK.footfall],
+                    LK.salesVolume: loc[LK.salesVolume] * generalData[GK.refillSalesFactor],
+                }
+                continue
+
+            # print("key----------------------------", key)
+            # print(f"#f9: {f9_count}, #f3: {f3_count}")
+            # print("local_score_exclude_footfall:", local_score_exclude_footfall)
+            # print("co2_savings_price:", co2_savings_price)
+            # print("earnings", earnings)
+
+            # add to solution dict
+            solution[LK.locations][key] = {
+                LK.f9100Count: int(f9_count),
+                LK.f3100Count: int(f3_count),
             }
-            continue
+    else:
+        print("======== Sandbox ========")
+        hotspot1 = mapEntity[HK.hotspots][0]
+        hotspot2 = mapEntity[HK.hotspots][1]
 
-        # print("key----------------------------", key)
-        # print(f"#f9: {f9_count}, #f3: {f3_count}")
-        # print("local_score_exclude_footfall:", local_score_exclude_footfall)
-        # print("co2_savings_price:", co2_savings_price)
-        # print("earnings", earnings)
+        solution[LK.locations]["location1"] = {
+            LK.f9100Count: 1,
+            LK.f3100Count: 0,
+            LK.locationType: generalData[GK.locationTypes][
+                GK.groceryStoreLarge
+            ][GK.type_],
+            CK.longitude: hotspot1[CK.longitude],
+            CK.latitude: hotspot1[CK.latitude],
+        }
 
-        # add to solution dict
-        solution[LK.locations][key] = {
-            LK.f9100Count: int(f9_count),
-            LK.f3100Count: int(f3_count),
+        solution[LK.locations]["location2"] = {
+            LK.f9100Count: 0,
+            LK.f3100Count: 1,
+            LK.locationType: generalData[GK.locationTypes][GK.groceryStore][
+                GK.type_
+            ],
+            CK.longitude: hotspot2[CK.longitude],
+            CK.latitude: hotspot2[CK.latitude],
         }
 
     return solution
