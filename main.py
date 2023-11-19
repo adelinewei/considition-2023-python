@@ -136,15 +136,15 @@ def main():
 
             print(f"Score: {score[SK.gameScore]}")
             id_ = score[SK.gameId]
-            print(f"Storing game with id {id_}.")
-            print(f"Enter {id_} into visualization.ipynb for local vizualization ")
+            # print(f"Storing game with id {id_}.")
+            # print(f"Enter {id_} into visualization.ipynb for local vizualization ")
 
-            # Store solution locally for visualization
-            with open(f"{game_folder}/{id_}.json", "w", encoding="utf8") as f:
-                json.dump(score, f, indent=4)
+            # # Store solution locally for visualization
+            # with open(f"{game_folder}/{id_}.json", "w", encoding="utf8") as f:
+            #     json.dump(score, f, indent=4)
 
-            # Submit and and get score from Considition app
-            print(f"Submitting solution to Considtion 2023 \n")
+            # # Submit and and get score from Considition app
+            # print(f"Submitting solution to Considtion 2023 \n")
 
             scoredSolution = submit(mapName, solution, apiKey)
             if scoredSolution:
@@ -235,8 +235,8 @@ def calulate_solution(mapEntity, generalData):
         if (location in del_location) or (location in calcualted):
             continue
 
-        print(location)
-        print(in_willing_travel_range[location])
+        # print(location)
+        # print(in_willing_travel_range[location])
 
         # print(location, in_willing_travel_range[location])
 
@@ -275,17 +275,19 @@ def calulate_solution(mapEntity, generalData):
 
             sum_sales_volume = loc[location]["salesVolume"]
             for i in neighbor_location:
-                print(i)
+                # print(i)
                 sum_sales_volume += loc[i]["salesVolume"]*generalData[GK.refillDistributionRate]
                 del_location.append(i)
 
-            print(sum_sales_volume*generalData[GK.refillSalesFactor])
+            # print(sum_sales_volume*generalData[GK.refillSalesFactor])
             if sum_sales_volume*generalData[GK.refillSalesFactor] > 140:
                 solution["locations"][location]["freestyle9100Count"] += 1
+                if solution["locations"][location]["freestyle3100Count"] == 1:
+                    solution["locations"][location]["freestyle3100Count"] -= 1
             elif sum_sales_volume*generalData[GK.refillSalesFactor] > 70:
                 solution["locations"][location]["freestyle3100Count"] += 1
 
-        print("="*50)
+        # print("="*50)
     for i in set(del_location):
         solution["locations"].pop(i)
 
