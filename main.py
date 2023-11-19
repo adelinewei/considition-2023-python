@@ -159,6 +159,9 @@ def example_solution(mapEntity, generalData, mapName):
 
 def try_(mapEntity, generalData, mapName):
 
+    max_number_of_f9100 = 2  # based on the rule
+    max_number_of_f3100 = 2  # based on the rule
+
     solution = {LK.locations: {}}
     not_in_solution = {LK.locations: {}}
 
@@ -179,33 +182,33 @@ def try_(mapEntity, generalData, mapName):
                 f9_count = 0
             else:
                 f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
-                f9_count = 2 if f9_count > 2 else f9_count
+                f9_count = max_number_of_f9100 if f9_count > max_number_of_f9100 else f9_count
 
                 rest_volume = sales_volume - f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
 
                 f3_count = rest_volume // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
-                f3_count = 2 if f3_count > 2 else f3_count
+                f3_count = max_number_of_f3100 if f3_count > max_number_of_f3100 else f3_count
 
                 # if f9_count < 2 and f3_count == 2:
                 #     f9_count += 1
                 #     f3_count = 0
-                if f9_count < 2 and f3_count == 2:
-                    # if replace 2 f3s by 1 f9
+                if f9_count < max_number_of_f9100:
+                    # if replace n f3s by 1 f9
                     temp_score_f9 = calculate_local_score(
                         f3_count=0,
                         f9_count=1,
                         generalData=generalData,
                         sales_volume=rest_volume)
 
-                    # if keep setting 2 f3s
+                    # if keep setting n f3s (n <= max_number_of_f3100)
                     rest_volume = min(round(rest_volume, 4), (f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]))
                     temp_score_f3 = calculate_local_score(
-                        f3_count=2,
+                        f3_count=f3_count,
                         f9_count=0,
                         generalData=generalData,
                         sales_volume=rest_volume)
 
-                    # replace 2 f3s by 1 f9 if it increase the local score
+                    # replace n f3s by 1 f9 if it increase the local score
                     if temp_score_f9 > temp_score_f3:
                         f9_count += 1
                         f3_count = 0
