@@ -179,8 +179,8 @@ def try_(mapEntity, generalData, mapName):
             distribute_scales = 0  # TODO add distributeScales, should be large
             footfall = loc[LK.footfall]  # TODO total footfall for all selected locations should be large
 
-            # sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
-            sales_volume = loc[LK.salesVolume]
+            sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
+            # sales_volume = loc[LK.salesVolume]
 
             # dummy solution TODO replace it
             # a x + b y = z
@@ -190,12 +190,8 @@ def try_(mapEntity, generalData, mapName):
             # x: f3_cap, y: f9_cap
             # TODO should use sales_volume, not loc[LK.salesVolume]
             if sales_volume < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
-                if footfall > 0:
-                    f3_count = 1
-                    f9_count = 0
-                else:
-                    f3_count = 1
-                    f9_count = 0
+                f3_count = 1
+                f9_count = 0
             else:
                 f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
                 f9_count = 2 if f9_count > 2 else f9_count
@@ -207,7 +203,7 @@ def try_(mapEntity, generalData, mapName):
                 f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek] \
                 + f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
 
-            sales = min(round(sales_volume, 0), sales_capacity)
+            sales = min(round(sales_volume, 4), sales_capacity)
             revenue = sales * generalData[GK.refillUnitData][GK.profitPerUnit]
             leasing_cost = \
                 f3_count * generalData[GK.f3100Data][GK.leasingCostPerWeek] \
@@ -226,7 +222,7 @@ def try_(mapEntity, generalData, mapName):
 
             local_score_exclude_footfall = co2_savings_price + earnings
 
-            if f3_count + f9_count < 1 or ((local_score_exclude_footfall < 0 and footfall < 0.004)):
+            if f3_count + f9_count < 1 or (local_score_exclude_footfall < 0):
 
                 not_in_solution[key] = {
                     LK.locationName: loc[LK.locationName],
