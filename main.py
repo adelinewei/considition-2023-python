@@ -88,7 +88,7 @@ def main():
             # ------------------------------------------------------------
             # ----------------Player Algorithm goes here------------------
             # solution = example_solution(mapEntity, generalData, mapName)
-            solution = try_(mapEntity, generalData, mapName)
+            solution = try_1(mapEntity, generalData, mapName)
             # ----------------End of player code--------------------------
             # ------------------------------------------------------------
 
@@ -157,7 +157,7 @@ def example_solution(mapEntity, generalData, mapName):
     return solution
 
 
-def try_(mapEntity, generalData, mapName):
+def try_1(mapEntity, generalData, mapName):
     # goal: salesCapacity close (or >=) to sales volumn as much as possible
     # maxima (salse) revenue, co2_saving, total footfall for all selected locations
     # minima leasing cost
@@ -166,96 +166,59 @@ def try_(mapEntity, generalData, mapName):
     max_number_of_f3100 = 2  # based on the rule
 
     solution = {LK.locations: {}}
-    not_in_solution = {LK.locations: {}}
 
-    if mapName not in [MN.sSandbox, MN.gSandbox]:
+    for key in mapEntity[LK.locations]:
+        loc = mapEntity[LK.locations][key]
 
-        for key in mapEntity[LK.locations]:
-            loc = mapEntity[LK.locations][key]
+        distribute_scales = 0  # TODO add distributeScales, should be large
+        sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
 
-            distribute_scales = 0  # TODO add distributeScales, should be large
-            sales_volume = (loc[LK.salesVolume] + distribute_scales) * generalData[GK.refillSalesFactor]
+        if sales_volume < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
+            f3_count = 1
+            f9_count = 0
+        else:
+            f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
+            f9_count = max_number_of_f9100 if f9_count > max_number_of_f9100 else f9_count
 
-            if sales_volume < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
-                f3_count = 1
-                f9_count = 0
-            else:
-                f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
-                f9_count = max_number_of_f9100 if f9_count > max_number_of_f9100 else f9_count
+            rest_volume = sales_volume - f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
 
-                rest_volume = sales_volume - f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
+            f3_count = rest_volume // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
+            f3_count = max_number_of_f3100 if f3_count > max_number_of_f3100 else f3_count
 
-                f3_count = rest_volume // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
-                f3_count = max_number_of_f3100 if f3_count > max_number_of_f3100 else f3_count
+            # if f9_count < 2 and f3_count == 2:
+            #     f9_count += 1
+            #     f3_count = 0
+            if f9_count < max_number_of_f9100:
+                # if replace n f3s by 1 f9
+                temp_score_f9 = calculate_local_score(
+                    f3_count=0,
+                    f9_count=1,
+                    generalData=generalData,
+                    sales_volume=rest_volume)
 
-                # if f9_count < 2 and f3_count == 2:
-                #     f9_count += 1
-                #     f3_count = 0
-                if f9_count < max_number_of_f9100:
-                    # if replace n f3s by 1 f9
-                    temp_score_f9 = calculate_local_score(
-                        f3_count=0,
-                        f9_count=1,
-                        generalData=generalData,
-                        sales_volume=rest_volume)
+                # if keep setting n f3s (n <= max_number_of_f3100)
+                rest_volume = min(round(rest_volume, 4), (f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]))
+                temp_score_f3 = calculate_local_score(
+                    f3_count=f3_count,
+                    f9_count=0,
+                    generalData=generalData,
+                    sales_volume=rest_volume)
 
-                    # if keep setting n f3s (n <= max_number_of_f3100)
-                    rest_volume = min(round(rest_volume, 4), (f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]))
-                    temp_score_f3 = calculate_local_score(
-                        f3_count=f3_count,
-                        f9_count=0,
-                        generalData=generalData,
-                        sales_volume=rest_volume)
+                # replace n f3s by 1 f9 if it increase the local score
+                if temp_score_f9 > temp_score_f3:
+                    f9_count += 1
+                    f3_count = 0
 
-                    # replace n f3s by 1 f9 if it increase the local score
-                    if temp_score_f9 > temp_score_f3:
-                        f9_count += 1
-                        f3_count = 0
+        # validation
+        local_score_exclude_footfall = calculate_local_score(f3_count, f9_count, generalData, sales_volume)
 
-            # validation
-            local_score_exclude_footfall = calculate_local_score(f3_count, f9_count, generalData, sales_volume)
+        if f3_count + f9_count < 1 or (local_score_exclude_footfall < 0):
+            continue
 
-            if f3_count + f9_count < 1 or (local_score_exclude_footfall < 0):
-
-                not_in_solution[key] = {
-                    LK.locationName: loc[LK.locationName],
-                    LK.locationType: loc[LK.locationType],
-                    CK.latitude: loc[CK.latitude],
-                    CK.longitude: loc[CK.longitude],
-                    LK.footfall: loc[LK.footfall],
-                    LK.salesVolume: loc[LK.salesVolume] * generalData[GK.refillSalesFactor],
-                }
-                continue
-
-            # add to solution dict
-            solution[LK.locations][key] = {
-                LK.f9100Count: int(f9_count),
-                LK.f3100Count: int(f3_count),
-            }
-
-    else:
-        print("======== Sandbox ========")
-        hotspot1 = mapEntity[HK.hotspots][0]
-        hotspot2 = mapEntity[HK.hotspots][1]
-
-        solution[LK.locations]["location1"] = {
-            LK.f9100Count: 1,
-            LK.f3100Count: 0,
-            LK.locationType: generalData[GK.locationTypes][
-                GK.groceryStoreLarge
-            ][GK.type_],
-            CK.longitude: hotspot1[CK.longitude],
-            CK.latitude: hotspot1[CK.latitude],
-        }
-
-        solution[LK.locations]["location2"] = {
-            LK.f9100Count: 0,
-            LK.f3100Count: 1,
-            LK.locationType: generalData[GK.locationTypes][GK.groceryStore][
-                GK.type_
-            ],
-            CK.longitude: hotspot2[CK.longitude],
-            CK.latitude: hotspot2[CK.latitude],
+        # add to solution dict
+        solution[LK.locations][key] = {
+            LK.f9100Count: int(f9_count),
+            LK.f3100Count: int(f3_count),
         }
 
     return solution
