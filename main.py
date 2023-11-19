@@ -195,8 +195,44 @@ def try_(mapEntity, generalData, mapName):
             else:
                 f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
                 f9_count = 2 if f9_count > 2 else f9_count
-                f3_count = (sales_volume - f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]) // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
+
+                rest_volume = sales_volume - f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
+
+                f3_count = rest_volume // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
                 f3_count = 2 if f3_count > 2 else f3_count
+
+                # if f9_count < 2 and f3_count == 2:
+                #     f9_count += 1
+                #     f3_count = 0
+                if f9_count < 2 and f3_count == 2:
+                    # f9 * 1
+                    temp_revenue_f9 = rest_volume * generalData[GK.refillUnitData][GK.profitPerUnit]
+                    temp_l_cost_f9 = 1 * generalData[GK.f9100Data][GK.leasingCostPerWeek]
+                    temp_earning_f9 = temp_revenue_f9 - temp_l_cost_f9
+
+                    temp_co2_saving_f9 = rest_volume * (
+                        generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
+                        - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
+                    ) - (1 * generalData[GK.f9100Data][GK.staticCo2]) / 1000
+
+                    temp_result_f9 = temp_earning_f9 + temp_co2_saving_f9
+
+                    # f3 * n
+                    rest_volume = min(round(rest_volume, 4), (f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]))
+                    temp_revenue_f3 = rest_volume * generalData[GK.refillUnitData][GK.profitPerUnit]
+                    temp_l_cost_f3 = f3_count * generalData[GK.f3100Data][GK.leasingCostPerWeek]
+                    temp_earning_f3 = temp_revenue_f3 - temp_l_cost_f3
+
+                    temp_co2_saving_f3 = rest_volume * (
+                        generalData[GK.classicUnitData][GK.co2PerUnitInGrams]
+                        - generalData[GK.refillUnitData][GK.co2PerUnitInGrams]
+                    ) - (f3_count * generalData[GK.f3100Data][GK.staticCo2]) / 1000
+
+                    temp_result_f3 = temp_earning_f3 + temp_co2_saving_f3
+
+                    if temp_result_f9 > temp_result_f3:
+                        f9_count += 1
+                        f3_count = 0
 
             # validation
             sales_capacity = \
