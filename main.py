@@ -246,7 +246,7 @@ def calulate_solution(mapEntity, generalData):
                 # if loc[location]["footfall"] >= loc[neighbor_location]["footfall"]:
                     sales_volume = loc[location]["salesVolume"] + \
                         loc[neighbor_location]["salesVolume"]*generalData[GK.refillDistributionRate]
-                    if sales_volume*generalData[GK.refillSalesFactor] > 70:
+                    if sales_volume*generalData[GK.refillSalesFactor] > 70 and sales_volume*generalData[GK.refillSalesFactor] < 140:
                         solution["locations"][location]["freestyle3100Count"] += 1
 
                     del_location.append(neighbor_location)
@@ -254,7 +254,7 @@ def calulate_solution(mapEntity, generalData):
                 else:
                     sales_volume = loc[neighbor_location]["salesVolume"] + \
                         loc[location]["salesVolume"]*generalData[GK.refillDistributionRate]
-                    if sales_volume*generalData[GK.refillSalesFactor] > 70:
+                    if sales_volume*generalData[GK.refillSalesFactor] > 70  and sales_volume*generalData[GK.refillSalesFactor] < 140:
                         solution["locations"][neighbor_location]["freestyle3100Count"] += 1
 
                     del_location.append(location)
@@ -286,7 +286,9 @@ def calulate_solution(mapEntity, generalData):
                 del_location.append(i)
 
             # print(sum_sales_volume*generalData[GK.refillSalesFactor])
-            if sum_sales_volume*generalData[GK.refillSalesFactor] > 140:
+            if sum_sales_volume*generalData[GK.refillSalesFactor] > 438:
+                solution["locations"][location]["freestyle9100Count"] += 1
+            elif sum_sales_volume*generalData[GK.refillSalesFactor] > 140 and solution["locations"][location]["freestyle9100Count"] == 0:
                 solution["locations"][location]["freestyle9100Count"] += 1
                 if solution["locations"][location]["freestyle3100Count"] == 1:
                     solution["locations"][location]["freestyle3100Count"] -= 1
