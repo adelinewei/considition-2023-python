@@ -136,15 +136,15 @@ def main():
 
             print(f"Score: {score[SK.gameScore]}")
             id_ = score[SK.gameId]
-            # print(f"Storing game with id {id_}.")
-            # print(f"Enter {id_} into visualization.ipynb for local vizualization ")
+            print(f"Storing game with id {id_}.")
+            print(f"Enter {id_} into visualization.ipynb for local vizualization ")
 
-            # # Store solution locally for visualization
-            # with open(f"{game_folder}/{id_}.json", "w", encoding="utf8") as f:
-            #     json.dump(score, f, indent=4)
+            # Store solution locally for visualization
+            with open(f"{game_folder}/{id_}.json", "w", encoding="utf8") as f:
+                json.dump(score, f, indent=4)
 
-            # # Submit and and get score from Considition app
-            # print(f"Submitting solution to Considtion 2023 \n")
+            # Submit and and get score from Considition app
+            print(f"Submitting solution to Considtion 2023 \n")
 
             scoredSolution = submit(mapName, solution, apiKey)
             if scoredSolution:
@@ -206,6 +206,7 @@ def calulate_solution(mapEntity, generalData):
                     LK.f3100Count: 0,
                 }
 
+    # ============================================================
     # Check if distance between two locations
     in_willing_travel_range = {}
 
@@ -231,12 +232,10 @@ def calulate_solution(mapEntity, generalData):
     del_location = []
     calcualted = []
     for i, location in enumerate(in_willing_travel_range):
-
+        print(location)
+        print(in_willing_travel_range[location])
         if (location in del_location) or (location in calcualted):
             continue
-
-        # print(location)
-        # print(in_willing_travel_range[location])
 
         # print(location, in_willing_travel_range[location])
 
@@ -244,6 +243,7 @@ def calulate_solution(mapEntity, generalData):
             neighbor_location = list(in_willing_travel_range[location].keys())[0]
             if len(in_willing_travel_range[neighbor_location]) == 1:
                 if loc[location]["salesVolume"] >= loc[neighbor_location]["salesVolume"]:
+                # if loc[location]["footfall"] >= loc[neighbor_location]["footfall"]:
                     sales_volume = loc[location]["salesVolume"] + \
                         loc[neighbor_location]["salesVolume"]*generalData[GK.refillDistributionRate]
                     if sales_volume*generalData[GK.refillSalesFactor] > 70:
@@ -265,13 +265,19 @@ def calulate_solution(mapEntity, generalData):
             for i in neighbor_location:
                 if len(in_willing_travel_range[i]) != (len(neighbor_location)+1):
                     continue
-
+                
+            max_footfall = loc[location]["footfall"]
             max_sales_volume = loc[location]["salesVolume"]
             for i in neighbor_location:
                 max_sales_volume = max(max_sales_volume, loc[i]["salesVolume"])
+                max_footfall = max(max_footfall, loc[i]["footfall"])
 
-            if loc[location]["salesVolume"] != max_sales_volume:
-                continue
+            if mapEntity["locationTypeCount"]["total"] > 100:
+                if loc[location]["footfall"] != max_footfall:
+                    continue
+            else:
+                if loc[location]["salesVolume"] != max_sales_volume:
+                    continue
 
             sum_sales_volume = loc[location]["salesVolume"]
             for i in neighbor_location:
@@ -287,7 +293,7 @@ def calulate_solution(mapEntity, generalData):
             elif sum_sales_volume*generalData[GK.refillSalesFactor] > 70:
                 solution["locations"][location]["freestyle3100Count"] += 1
 
-        # print("="*50)
+        print("="*50)
     for i in set(del_location):
         solution["locations"].pop(i)
 
