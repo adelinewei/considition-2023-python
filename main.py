@@ -1,4 +1,5 @@
 import os
+import math
 import json
 from scoring import calculateScore, distanceBetweenPoint
 from api import getGeneralData, getMapData, submit
@@ -266,7 +267,7 @@ def calulate_solution(mapEntity, generalData):
                     loc[location]["salesVolume"]*generalData[GK.refillDistributionRate]
                 # if sales_volume*generalData[GK.refillSalesFactor] > 70  and sales_volume*generalData[GK.refillSalesFactor] < 140:
                 #     solution["locations"][neighbor_location]["freestyle3100Count"] += 1
-                if sales_volume*generalData[GK.refillSalesFactor] > 70 and sales_volume*generalData[GK.refillSalesFactor] < 140:
+                if sales_volume*generalData[GK.refillSalesFactor] > 72 and sales_volume*generalData[GK.refillSalesFactor] < 140:
                     solution["locations"][neighbor_location]["freestyle3100Count"] += 1
                 
                 if sales_volume*generalData[GK.refillSalesFactor] > 140 and sales_volume*generalData[GK.refillSalesFactor] < 438:
@@ -279,14 +280,20 @@ def calulate_solution(mapEntity, generalData):
 
                 del_location.append(location)
                 calcualted.append(neighbor_location)
+            
+            # print(del_location)
 
         # 兩個點以上，且所有點都包含在一起
         if len(in_willing_travel_range[location]) > 1:
+
             neighbor_location = list(in_willing_travel_range[location].keys())
-            
-            for i in neighbor_location:
-                if len(in_willing_travel_range[i]) != (len(neighbor_location)+1):
-                    continue
+            # count = 0
+            # for i in neighbor_location:
+            #     if len(in_willing_travel_range[i]) == (len(neighbor_location)+1):
+            #         count += 1
+            # if count != len(neighbor_location):
+            #     continue
+
             # next_location = False
             # for i in neighbor_location:
             #     if len(in_willing_travel_range[i]) != (len(neighbor_location)+1):
@@ -349,68 +356,156 @@ def calulate_solution(mapEntity, generalData):
                     solution["locations"][location]["freestyle3100Count"] -= 1
             elif sum_sales_volume*generalData[GK.refillSalesFactor] > 70:
                 solution["locations"][location]["freestyle3100Count"] += 1
-        
 
-        # if len(in_willing_travel_range[location]) > 1:
-        #     neighbor_location = list(in_willing_travel_range[location].keys())
+        # del_location.append("location39")
 
+        # # 兩個 location 以上，但可能被包含在不同的圈圈裡
+        # for willing_travel_location in in_willing_travel_range:
+        #     # 刪除只有兩個 location 的圈圈
+        #     if len(in_willing_travel_range[willing_travel_location]) == 1:
+        #         continue
+        #     # 在 willing travel 的距離，還沒被刪掉
+        #     if willing_travel_location in del_location:
+        #         continue
+            
+        #     # print(willing_travel_location, in_willing_travel_range[willing_travel_location])
+        #     # 紀錄該 location 在不同圈圈出現的次數
         #     appear_times = {}
-        #     # appear_times[location] = 1
-        #     print(location)
-        #     print(in_willing_travel_range[location])
-        #     for i in neighbor_location:
-        #         print(in_willing_travel_range[i])
-        #         for j in in_willing_travel_range[i].keys():
+
+        #     # print(in_willing_travel_range[location])
+        #     for l in in_willing_travel_range[willing_travel_location]:
+        #         print(l)
+        #         if not appear_times.get(l):
+        #             appear_times[l] = 1
+        #         else:
+        #             appear_times[l] += 1
+        #         print(l, in_willing_travel_range[willing_travel_location][l])
+        #         print(in_willing_travel_range[l])
+        #         for j in in_willing_travel_range[l]:
+        #             # print(j)
         #             if not appear_times.get(j):
         #                 appear_times[j] = 1
         #             else:
         #                 appear_times[j] += 1
 
+        #     # 不考慮全部的 location 都包含在一起
         #     appear_times_list = list(appear_times.values())
         #     if appear_times_list.count(appear_times_list[0]) == len(appear_times_list):
         #         continue
-
-        #     print(appear_times)
             
-        #     appear_times_key_list = list(appear_times.keys())
-        #     print(appear_times_key_list)
-        #     idx = appear_times_list.index(max(appear_times_list))
-        #     print(idx, appear_times_key_list[idx])
-        #     # try:
-        #     neighbor_location.pop(appear_times_key_list[idx])
-        #     print(neighbor_location)
-        #     del_location.extend(neighbor_location)
-        #     # except:
-        #     #     continue
+        #     # print(willing_travel_location, in_willing_travel_range[willing_travel_location])
+        #     # print(appear_times)
+        #     # for a in appear_times:
+        #     #     print(mapEntity["locations"][a])
+        #     #     if mapEntity["locations"][a]["footfallScale"] == 0:
+        #     #         del_location.append(a)
+        #     # print("-----"*20)
 
+            
+        #     appear_times_key_list = list(appear_times)
+        #     # print(appear_times_key_list)
+        #     idx = appear_times_list.index(min(appear_times_list))
+        #     pop_location = appear_times_key_list[idx]
 
-            print("="*50)
-    print(del_location)
+        #     del_location.append(pop_location)
+        #     # print(idx, pop_location)
+        #     # print(appear_times_key_list)
+            
+            # appear_times_key_list.remove(pop_location)
+            # # print(appear_times_key_list)
+            # del_location.extend(appear_times_key_list)
+
+            # print("========"*10)
+
+            # print("="*50)
+    # print(del_location)
+
     for i in set(del_location):
+        # print(i)
         solution["locations"].pop(i)
 
-    # for i, location in enumerate(solution["locations"]):
-    #     if not in_willing_travel_range.get(location):
-    #         continue
-    #     neighbor_location = in_willing_travel_range[location]
+    
+    sales_volume_total = {}
+    # 沒有設機器的 location
+    for key_without in mapEntity["locations"]:
+        if key_without in solution["locations"]:
+            continue
 
-    #     if solution["locations"][location]["freestyle3100Count"] == 2:
-    #         sum_sales_volume = loc[location]["salesVolume"]
-    #         for i in neighbor_location:
-    #             sum_sales_volume += loc[i]["salesVolume"]*generalData[GK.refillDistributionRate]
+        distributeSalesTo = {}
+        loc_without = mapEntity["locations"][key_without]
 
-    #         if sum_sales_volume > 125:
-    #             solution["locations"][location]["freestyle3100Count"] = 0
-    #             solution["locations"][location]["freestyle9100Count"] = 1
+        # 有設機器的 location
+        for key_with_ in solution["locations"]:
+            # 計算有設機器與沒設機器的 location 的距離，留下 200 公尺的 location
+            distance = distanceBetweenPoint(
+                loc_without[CK.latitude],
+                loc_without[CK.longitude],
+                mapEntity["locations"][key_with_][CK.latitude],
+                mapEntity["locations"][key_with_][CK.longitude],
+            )
+            if distance < generalData[GK.willingnessToTravelInMeters]:
+                distributeSalesTo[mapEntity["locations"][key_with_][LK.locationName]] = distance
+        
+        total = 0
+        if distributeSalesTo:
+            # 有設機器的 location
+            for key_temp in distributeSalesTo:
+                distributeSalesTo[key_temp] = (
+                    # constantExpDistributionFunction = 1.03
+                    # willingnessToTravelInMeters = 200
+                    # 1.03^(200-distance_diff) - 1
+                    # 距離越近，分數越高
+                    math.pow(
+                        generalData[GK.constantExpDistributionFunction],
+                        generalData[GK.willingnessToTravelInMeters]
+                        - distributeSalesTo[key_temp],
+                    )
+                    - 1
+                )
+                total += distributeSalesTo[key_temp]
+            # 有設機器的 location 會去分攤沒設機器的 location 的 sales volume
+            for key_temp in distributeSalesTo:
+                if sales_volume_total.get(key_temp) == None:
+                    sales_volume_total[key_temp] = (mapEntity["locations"][key_temp][LK.salesVolume] * generalData[GK.refillSalesFactor]) + (
+                    distributeSalesTo[key_temp]
+                    / total
+                    * generalData[GK.refillDistributionRate]
+                    * loc_without[LK.salesVolume]
+                     * generalData[GK.refillSalesFactor]
+                )
+                else:
+                    sales_volume_total[key_temp] += (
+                    distributeSalesTo[key_temp]
+                    / total
+                    * generalData[GK.refillDistributionRate]
+                    * loc_without[LK.salesVolume]
+                     * generalData[GK.refillSalesFactor]
+                )
 
+    # print(sales_volume_total)
 
-    # for i in solution["locations"]:
-    #     if solution["locations"][i]["freestyle3100Count"] == 2:
-    #         solution["locations"][i]["freestyle3100Count"] = 0
-    #         solution["locations"][i]["freestyle9100Count"] = 1
+    for location in sales_volume_total:
+        if sales_volume_total[location] < (solution["locations"][location]["freestyle3100Count"]*70 + solution["locations"][location]["freestyle9100Count"]*438):
+            if (sales_volume_total[location] < (solution["locations"][location]["freestyle9100Count"]*438)) and \
+                (solution["locations"][location]["freestyle9100Count"]*438 < (solution["locations"][location]["freestyle3100Count"]*70 + solution["locations"][location]["freestyle9100Count"]*438)):
+                solution["locations"][location]["freestyle3100Count"] -= 1
+                continue
+            else:
+                continue
+        # print(location, sales_volume_total[location])
+        # print(solution["locations"][location])
+        if sales_volume_total[location] > 438:
+            solution["locations"][location]["freestyle9100Count"] += 1
+        elif sales_volume_total[location] > 140 and solution["locations"][location]["freestyle9100Count"] == 0:
+            solution["locations"][location]["freestyle9100Count"] += 1
+            if solution["locations"][location]["freestyle3100Count"] == 1:
+                solution["locations"][location]["freestyle3100Count"] -= 1
+        elif sales_volume_total[location] > 73:
+            solution["locations"][location]["freestyle3100Count"] += 1
 
+        # print(solution["locations"][location])
+    
     # print(solution)
-
     
     return solution
 
