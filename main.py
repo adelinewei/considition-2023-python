@@ -233,33 +233,30 @@ def try_2(mapEntity, generalData, mapName):
 
     max_number_of_f9100 = 2  # based on the rule
     max_number_of_f3100 = 2  # based on the rule
-
     solution = {LK.locations: {}}
 
-
-    #########
-    #########
 
     # step 1 - set machine or not
     set_machine_dict = {}
     for curr_location in mapEntity[LK.locations].values():
-        # if curr_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek] * 1:
-        if curr_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < 14:
-            big_candidate_list = []
-            small_candidate_list = []
-            for candidate_location in mapEntity[LK.locations].values():
-                distance = distanceBetweenPoint(
-                    curr_location[CK.latitude],
-                    curr_location[CK.longitude],
-                    candidate_location[CK.latitude],
-                    candidate_location[CK.longitude]
-                )
-                if distance <= generalData[GK.willingnessToTravelInMeters]:
-                    # if candidate_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
-                    if candidate_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < 70:
-                        small_candidate_list.append(candidate_location[LK.locationName])
-                    else:
-                        big_candidate_list.append(candidate_location[LK.locationName])
+
+        big_candidate_list = []
+        small_candidate_list = []
+
+        for candidate_location in mapEntity[LK.locations].values():
+            distance = distanceBetweenPoint(
+                curr_location[CK.latitude],
+                curr_location[CK.longitude],
+                candidate_location[CK.latitude],
+                candidate_location[CK.longitude]
+            )
+            if distance <= generalData[GK.willingnessToTravelInMeters]:
+                if candidate_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
+                    small_candidate_list.append(candidate_location[LK.locationName])
+                else:
+                    big_candidate_list.append(candidate_location[LK.locationName])
+
+        if curr_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek] * 1:
 
             if len(big_candidate_list) + len(small_candidate_list) == 0:
                 set_machine_dict[curr_location[LK.locationName]] = True
@@ -274,12 +271,33 @@ def try_2(mapEntity, generalData, mapName):
                 )
                 set_machine_dict[sorted_small_candidate_list[0]] = True
 
-                # if set_machine_dict.get(curr_location[LK.locationName]) is None:
                 if sorted_small_candidate_list[0] != curr_location[LK.locationName]:
+                    # set_machine_dict[curr_location[LK.locationName]] = set_machine_dict.get(curr_location[LK.locationName], False)
                     set_machine_dict[curr_location[LK.locationName]] = False
 
+        # elif curr_location[LK.salesVolume] * generalData[GK.refillSalesFactor] > generalData[GK.f3100Data][GK.refillCapacityPerWeek] * 1.5:
+        #     set_machine_dict[curr_location[LK.locationName]] = True
+
+
         else:
-            set_machine_dict[curr_location[LK.locationName]] = True
+
+            if len(big_candidate_list) + len(small_candidate_list) == 0:
+                set_machine_dict[curr_location[LK.locationName]] = True
+            elif len(big_candidate_list) > 0:
+                big_candidate_list.append(curr_location[LK.locationName])
+                sorted_big_candidate_list = sorted(
+                    big_candidate_list,
+                    key=lambda loc_name: mapEntity[LK.locations][loc_name][LK.footfall],
+                    reverse=True
+                )
+                set_machine_dict[sorted_big_candidate_list[0]] = True
+
+                if sorted_big_candidate_list[0] != curr_location[LK.locationName]:
+                    set_machine_dict[curr_location[LK.locationName]] = set_machine_dict.get(curr_location[LK.locationName], False)
+                    # set_machine_dict[curr_location[LK.locationName]] = False
+            else:
+                set_machine_dict[curr_location[LK.locationName]] = True
+
 
     # step 2 - re-calculate sales volume
     locationListNoRefillStation = {}
@@ -311,9 +329,7 @@ def try_2(mapEntity, generalData, mapName):
         locationListWithRefillStation, locationListNoRefillStation, generalData
     )
 
-    #########
-    #########
-
+    # step 3 - set number of f9100 and f3100
     for key in locationListWithRefillStation:
         loc = locationListWithRefillStation[key]
         sales_volume = loc[LK.salesVolume]
@@ -352,20 +368,7 @@ def try_2(mapEntity, generalData, mapName):
                     f9_count_finall = f9_c
                     f3_count_finall = f3_c
 
-        # t1 = calculate_local_score(
-        #             1,
-        #             0,
-        #             generalData,
-        #             4.35
-        #         )
-        # t2 = calculate_local_score(
-        #             0,
-        #             1,
-        #             generalData,
-        #             10.55
-        #         )
-        # print(f"{loc[LK.locationName]}: {t1}, {t2}")
-        if max_temp_score < 0 and loc[LK.footfallScale] < 10:
+        if max_temp_score < 0 and loc[LK.footfallScale] < 0:
             continue
 
         # add to solution dict
