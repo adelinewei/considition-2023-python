@@ -26,7 +26,8 @@ def main():
     try:
         apiKey = os.environ["apiKey"]
     except Exception as e:
-        raise SystemExit("Did you forget to create a .env file with the apiKey?")
+        raise SystemExit(
+            "Did you forget to create a .env file with the apiKey?")
 
     # User selct a map name
     print(f"1: {MN.stockholm}")
@@ -70,17 +71,18 @@ def main():
             print("Invalid choice.")
 
     if mapName:
-        ##Get map data from Considition endpoint
+        # Get map data from Considition endpoint
         data_file_name = f"data/map_{mapName}.json"
         if not os.path.isfile(data_file_name):
             mapEntity = getMapData(mapName, apiKey)
-            with open(data_file_name, "w", encoding="utf8") as f:
-                json.dump(mapEntity, f, indent=4)
+            if mapEntity:
+                with open(data_file_name, "w", encoding="utf8") as f:
+                    json.dump(mapEntity, f, indent=4)
         else:
             with open(data_file_name, "r", encoding="utf8") as f:
                 mapEntity = json.load(f)
 
-        ##Get non map specific data from Considition endpoint
+        # Get non map specific data from Considition endpoint
         genderal_file_name = "data/general.json"
         if not os.path.isfile(genderal_file_name):
             generalData = getGeneralData()
@@ -136,13 +138,14 @@ def main():
             score = calculateScore(mapName, solution, mapEntity, generalData)
 
             print(f"Score: {score[SK.gameScore]}")
-            # id_ = score[SK.gameId]
-            # print(f"Storing game with id {id_}.")
-            # print(f"Enter {id_} into visualization.ipynb for local vizualization ")
+            id_ = score[SK.gameId]
+            print(f"Storing game with id {id_}.")
+            print(
+                f"Enter {id_} into visualization.ipynb for local vizualization ")
 
-            # # Store solution locally for visualization
-            # with open(f"{game_folder}/{id_}.json", "w", encoding="utf8") as f:
-            #     json.dump(score, f, indent=4)
+            # Store solution locally for visualization
+            with open(f"{game_folder}/{id_}.json", "w", encoding="utf8") as f:
+                json.dump(score, f, indent=4)
 
             # # Submit and and get score from Considition app
             # print(f"Submitting solution to Considtion 2023 \n")
@@ -156,56 +159,62 @@ def main():
 
 def calulate_solution(mapEntity, generalData):
 
+    REFILL_SALES_FACTOR = generalData[GK.refillSalesFactor]  # 0.58
+    f3100_CAPACITY = generalData[GK.f3100Data][GK.refillCapacityPerWeek]  # 70
+    f9100_CAPACITY = generalData[GK.f9100Data][GK.refillCapacityPerWeek]  # 438
+    # 598.0
+    f3100_LEASING_COST = generalData[GK.f3100Data][GK.leasingCostPerWeek]
+    # 1038.0
+    f9100_LEASING_COST = generalData[GK.f9100Data][GK.leasingCostPerWeek]
+    PROFIT_PER_UNIT = generalData[GK.refillUnitData][GK.profitPerUnit]  # 130.0
+    REFILL_DISTRIBUTION_RATE = generalData[GK.refillDistributionRate]  # 0.97
+
     solution = {LK.locations: {}}
 
     for key in mapEntity[LK.locations]:
-        location = mapEntity[LK.locations][key]
 
+        location = mapEntity[LK.locations][key]
         name = location[LK.locationName]
 
-        if location["locationType"] == "Grocery-store-large":
-            solution[LK.locations][name] = {
-                LK.f9100Count: 1,
-                LK.f3100Count: 0,
-            }
-            continue
+        salesVolume = location[LK.salesVolume] * REFILL_SALES_FACTOR
+        if (salesVolume > f3100_CAPACITY*2) and (f9100_CAPACITY > salesVolume):
 
-        # if location["locationType"] == "Grocery-store":
-        #     solution[LK.locations][name] = {
-        #         LK.f9100Count: 0,
-        #         LK.f3100Count: 1,
-        #     }
-        #     continue
-
-        salesVolume = location[LK.salesVolume] * generalData[GK.refillSalesFactor]
-        f3100_capacity = generalData[GK.f3100Data][GK.refillCapacityPerWeek]
-        f9100_capacity = generalData[GK.f9100Data][GK.refillCapacityPerWeek]
-
-        f3100_leasing_cost = generalData[GK.f3100Data][GK.leasingCostPerWeek]
-        f9100_leasing_cost = generalData[GK.f9100Data][GK.leasingCostPerWeek]
-
-        sales = salesVolume
-        if abs(f9100_capacity-salesVolume) > abs(f3100_capacity-salesVolume):
-            if f3100_capacity < salesVolume:
-                sales = f3100_capacity
-
-            revenue = sales * generalData[GK.refillUnitData][GK.profitPerUnit]
-
-            if revenue - f3100_leasing_cost > 0:
-                solution[LK.locations][name] = {
-                    LK.f9100Count: 0,
-                    LK.f3100Count: 1,
-                }
-        else:
-            if f9100_capacity < salesVolume:
-                sales = f9100_capacity
-            revenue = sales * generalData[GK.refillUnitData][GK.profitPerUnit]
-
-            if revenue - f9100_leasing_cost > 0:
+            revenue = salesVolume * PROFIT_PER_UNIT
+            if revenue - f9100_LEASING_COST > 0:
                 solution[LK.locations][name] = {
                     LK.f9100Count: 1,
                     LK.f3100Count: 0,
                 }
+            continue
+
+        # if (salesVolume < f3100_CAPACITY*2) and (salesVolume > f3100_CAPACITY):
+        #     revenue = salesVolume * PROFIT_PER_UNIT
+        #     if revenue - f3100_LEASING_COST*2 > 0:
+        #         solution[LK.locations][name] = {
+        #             LK.f9100Count: 0,
+        #             LK.f3100Count: 2,
+        #         }
+        #     continue
+
+        if abs(f9100_CAPACITY-salesVolume) > abs(f3100_CAPACITY-salesVolume):
+            sales = min(salesVolume, f3100_CAPACITY)
+            revenue = sales * PROFIT_PER_UNIT
+
+            if revenue - f3100_LEASING_COST > 0:
+                solution[LK.locations][name] = {
+                    LK.f9100Count: 0,
+                    LK.f3100Count: 1,
+                }
+            continue
+        # else:
+        #     sales = min(salesVolume, f9100_CAPACITY)
+        #     revenue = sales * PROFIT_PER_UNIT
+
+        #     if revenue - f9100_LEASING_COST > 0:
+        #         solution[LK.locations][name] = {
+        #             LK.f9100Count: 1,
+        #             LK.f3100Count: 0,
+        #         }
 
     # ============================================================
     # Check if distance smaller than 200 meters between two locations
@@ -231,9 +240,10 @@ def calulate_solution(mapEntity, generalData):
 
     del_location = []
     calcualted = []
+    # print(in_willing_travel_range)
     for i, location in enumerate(in_willing_travel_range):
-        # print(location)
-        # print(in_willing_travel_range[location])
+        print(location)
+        print(in_willing_travel_range[location])
         if (location in del_location) or (location in calcualted):
             continue
 
@@ -241,46 +251,38 @@ def calulate_solution(mapEntity, generalData):
 
         # 只有兩個點
         if len(in_willing_travel_range[location]) == 1:
-            neighbor_location = list(in_willing_travel_range[location].keys())[0]
+            neighbor_location = list(
+                in_willing_travel_range[location].keys())[0]
             if len(in_willing_travel_range[neighbor_location]) > 1:
                 continue
-            if (loc[location]["salesVolume"] > loc[neighbor_location]["salesVolume"]) or \
-                (loc[location]["salesVolume"] == loc[neighbor_location]["salesVolume"] and loc[location]["footfall"] > loc[neighbor_location]["footfall"]):
-                sales_volume = loc[location]["salesVolume"] + \
-                    loc[neighbor_location]["salesVolume"]*generalData[GK.refillDistributionRate]
-                if sales_volume*generalData[GK.refillSalesFactor] > 70 and sales_volume*generalData[GK.refillSalesFactor] < 140:
-                    solution["locations"][location]["freestyle3100Count"] += 1
-                
-                if sales_volume*generalData[GK.refillSalesFactor] > 140 and sales_volume*generalData[GK.refillSalesFactor] < 438:
-                    if solution["locations"][location]["freestyle9100Count"] == 0:
-                        solution["locations"][location]["freestyle9100Count"] += 1
-                        solution["locations"][location]["freestyle3100Count"] -= 1
 
-                if sales_volume*generalData[GK.refillSalesFactor] > 438  and sales_volume*generalData[GK.refillSalesFactor] < (438+70):
-                    solution["locations"][location]["freestyle3100Count"] += 1
+            if (loc[location]["salesVolume"] > loc[neighbor_location]["salesVolume"]) or \
+                    (loc[location]["salesVolume"] == loc[neighbor_location]["salesVolume"] and loc[location]["footfall"] >= loc[neighbor_location]["footfall"]):
+                sales_volume = loc[location]["salesVolume"] + \
+                    loc[neighbor_location]["salesVolume"] * \
+                    REFILL_DISTRIBUTION_RATE
+
+                add_machine_by_salesvolume(location,
+                                           sales_volume*REFILL_SALES_FACTOR,
+                                           solution,
+                                           f9100_CAPACITY,
+                                           f3100_CAPACITY)
 
                 del_location.append(neighbor_location)
                 calcualted.append(location)
 
             else:
                 sales_volume = loc[neighbor_location]["salesVolume"] + \
-                    loc[location]["salesVolume"]*generalData[GK.refillDistributionRate]
-                # if sales_volume*generalData[GK.refillSalesFactor] > 70  and sales_volume*generalData[GK.refillSalesFactor] < 140:
-                #     solution["locations"][neighbor_location]["freestyle3100Count"] += 1
-                if sales_volume*generalData[GK.refillSalesFactor] > 72 and sales_volume*generalData[GK.refillSalesFactor] < 140:
-                    solution["locations"][neighbor_location]["freestyle3100Count"] += 1
-                
-                if sales_volume*generalData[GK.refillSalesFactor] > 140 and sales_volume*generalData[GK.refillSalesFactor] < 438:
-                    if solution["locations"][neighbor_location]["freestyle9100Count"] == 0:
-                        solution["locations"][neighbor_location]["freestyle9100Count"] += 1
-                        solution["locations"][neighbor_location]["freestyle3100Count"] -= 1
-
-                if sales_volume*generalData[GK.refillSalesFactor] > 438  and sales_volume*generalData[GK.refillSalesFactor] < (438+70):
-                    solution["locations"][neighbor_location]["freestyle3100Count"] += 1
+                    loc[location]["salesVolume"]*REFILL_SALES_FACTOR
+                add_machine_by_salesvolume(neighbor_location,
+                                           sales_volume*REFILL_SALES_FACTOR,
+                                           solution,
+                                           f9100_CAPACITY,
+                                           f3100_CAPACITY)
 
                 del_location.append(location)
                 calcualted.append(neighbor_location)
-            
+
             # print(del_location)
 
         # 兩個點以上，且所有點都包含在一起
@@ -325,7 +327,7 @@ def calulate_solution(mapEntity, generalData):
                 footfall_list.append(loc[i]["footfall"])
             max_sales_volume = max(salesVolume_list)
             max_footfall = max(footfall_list)
-            
+
             # 如果全部的 salesVolume 都一樣，取 footfall 最大的點
             # if all(salesVolume_list) == max_sales_volume:
             if salesVolume_list.count(max_sales_volume) == len(salesVolume_list):
@@ -337,25 +339,38 @@ def calulate_solution(mapEntity, generalData):
             # salesVolume 的值最大，但並非和其他 location 一樣
             else:
                 # 找出同樣 salesVolume 值的最大 footfall 值
-                max_sales_volume_footfall = max([footfall_list[i] for i, ele in enumerate(salesVolume_list) if ele == max_sales_volume])
+                max_sales_volume_footfall = max([footfall_list[i] for i, ele in enumerate(
+                    salesVolume_list) if ele == max_sales_volume])
                 if loc[location]["footfall"] != max_sales_volume_footfall:
                     continue
 
             sum_sales_volume = loc[location]["salesVolume"]
             for i in neighbor_location:
                 # print(i)
-                sum_sales_volume += loc[i]["salesVolume"]*generalData[GK.refillDistributionRate]
+                sum_sales_volume += loc[i]["salesVolume"] * \
+                    REFILL_DISTRIBUTION_RATE
                 del_location.append(i)
 
+            # add_machine_by_salesvolume(location,
+            #                    sales_volume*REFILL_SALES_FACTOR,
+            #                    solution,
+            #                    f9100_CAPACITY,
+            #                    f3100_CAPACITY)
+
             # print(sum_sales_volume*generalData[GK.refillSalesFactor])
-            if sum_sales_volume*generalData[GK.refillSalesFactor] > 438:
+            if sum_sales_volume*REFILL_SALES_FACTOR > 438:
                 solution["locations"][location]["freestyle9100Count"] += 1
-            elif sum_sales_volume*generalData[GK.refillSalesFactor] > 140 and solution["locations"][location]["freestyle9100Count"] == 0:
+            elif sum_sales_volume*REFILL_SALES_FACTOR > 140 and solution["locations"][location]["freestyle9100Count"] == 0:
                 solution["locations"][location]["freestyle9100Count"] += 1
                 if solution["locations"][location]["freestyle3100Count"] == 1:
                     solution["locations"][location]["freestyle3100Count"] -= 1
-            elif sum_sales_volume*generalData[GK.refillSalesFactor] > 70:
-                solution["locations"][location]["freestyle3100Count"] += 1
+            elif sum_sales_volume*REFILL_SALES_FACTOR > 70:
+                # solution["locations"][location]["freestyle3100Count"] += 1
+                if solution["locations"][location]["freestyle3100Count"] <= 1:
+                    solution["locations"][location]["freestyle3100Count"] += 1
+                else:
+                    solution["locations"][location]["freestyle3100Count"] -= 1
+                    solution["locations"][location]["freestyle9100Count"] += 1
 
         # del_location.append("location39")
 
@@ -367,7 +382,7 @@ def calulate_solution(mapEntity, generalData):
         #     # 在 willing travel 的距離，還沒被刪掉
         #     if willing_travel_location in del_location:
         #         continue
-            
+
         #     # print(willing_travel_location, in_willing_travel_range[willing_travel_location])
         #     # 紀錄該 location 在不同圈圈出現的次數
         #     appear_times = {}
@@ -392,7 +407,7 @@ def calulate_solution(mapEntity, generalData):
         #     appear_times_list = list(appear_times.values())
         #     if appear_times_list.count(appear_times_list[0]) == len(appear_times_list):
         #         continue
-            
+
         #     # print(willing_travel_location, in_willing_travel_range[willing_travel_location])
         #     # print(appear_times)
         #     # for a in appear_times:
@@ -401,7 +416,6 @@ def calulate_solution(mapEntity, generalData):
         #     #         del_location.append(a)
         #     # print("-----"*20)
 
-            
         #     appear_times_key_list = list(appear_times)
         #     # print(appear_times_key_list)
         #     idx = appear_times_list.index(min(appear_times_list))
@@ -410,7 +424,7 @@ def calulate_solution(mapEntity, generalData):
         #     del_location.append(pop_location)
         #     # print(idx, pop_location)
         #     # print(appear_times_key_list)
-            
+
             # appear_times_key_list.remove(pop_location)
             # # print(appear_times_key_list)
             # del_location.extend(appear_times_key_list)
@@ -424,7 +438,6 @@ def calulate_solution(mapEntity, generalData):
         # print(i)
         solution["locations"].pop(i)
 
-    
     sales_volume_total = {}
     # 沒有設機器的 location
     for key_without in mapEntity["locations"]:
@@ -444,8 +457,9 @@ def calulate_solution(mapEntity, generalData):
                 mapEntity["locations"][key_with_][CK.longitude],
             )
             if distance < generalData[GK.willingnessToTravelInMeters]:
-                distributeSalesTo[mapEntity["locations"][key_with_][LK.locationName]] = distance
-        
+                distributeSalesTo[mapEntity["locations"]
+                                  [key_with_][LK.locationName]] = distance
+
         total = 0
         if distributeSalesTo:
             # 有設機器的 location
@@ -466,28 +480,28 @@ def calulate_solution(mapEntity, generalData):
             # 有設機器的 location 會去分攤沒設機器的 location 的 sales volume
             for key_temp in distributeSalesTo:
                 if sales_volume_total.get(key_temp) == None:
-                    sales_volume_total[key_temp] = (mapEntity["locations"][key_temp][LK.salesVolume] * generalData[GK.refillSalesFactor]) + (
-                    distributeSalesTo[key_temp]
-                    / total
-                    * generalData[GK.refillDistributionRate]
-                    * loc_without[LK.salesVolume]
-                     * generalData[GK.refillSalesFactor]
-                )
+                    sales_volume_total[key_temp] = (mapEntity["locations"][key_temp][LK.salesVolume] * REFILL_SALES_FACTOR) + (
+                        distributeSalesTo[key_temp]
+                        / total
+                        * REFILL_DISTRIBUTION_RATE
+                        * loc_without[LK.salesVolume]
+                        * REFILL_SALES_FACTOR
+                    )
                 else:
                     sales_volume_total[key_temp] += (
-                    distributeSalesTo[key_temp]
-                    / total
-                    * generalData[GK.refillDistributionRate]
-                    * loc_without[LK.salesVolume]
-                     * generalData[GK.refillSalesFactor]
-                )
+                        distributeSalesTo[key_temp]
+                        / total
+                        * REFILL_DISTRIBUTION_RATE
+                        * loc_without[LK.salesVolume]
+                        * REFILL_SALES_FACTOR
+                    )
 
-    # print(sales_volume_total)
+    print(sales_volume_total)
 
     for location in sales_volume_total:
         if sales_volume_total[location] < (solution["locations"][location]["freestyle3100Count"]*70 + solution["locations"][location]["freestyle9100Count"]*438):
             if (sales_volume_total[location] < (solution["locations"][location]["freestyle9100Count"]*438)) and \
-                (solution["locations"][location]["freestyle9100Count"]*438 < (solution["locations"][location]["freestyle3100Count"]*70 + solution["locations"][location]["freestyle9100Count"]*438)):
+                    (solution["locations"][location]["freestyle9100Count"]*438 < (solution["locations"][location]["freestyle3100Count"]*70 + solution["locations"][location]["freestyle9100Count"]*438)):
                 solution["locations"][location]["freestyle3100Count"] -= 1
                 continue
             else:
@@ -501,13 +515,63 @@ def calulate_solution(mapEntity, generalData):
             if solution["locations"][location]["freestyle3100Count"] == 1:
                 solution["locations"][location]["freestyle3100Count"] -= 1
         elif sales_volume_total[location] > 73:
-            solution["locations"][location]["freestyle3100Count"] += 1
+            # solution["locations"][location]["freestyle3100Count"] += 1
+            if solution["locations"][location]["freestyle3100Count"] <= 1:
+                solution["locations"][location]["freestyle3100Count"] += 1
+            else:
+                solution["locations"][location]["freestyle3100Count"] -= 1
+                solution["locations"][location]["freestyle9100Count"] += 1
 
         # print(solution["locations"][location])
-    
+
     # print(solution)
-    
+
     return solution
+
+# def get_income_base(f3100, f9100, sales_volume):
+#     earning =  sales_volume *
+
+
+def add_machine_by_salesvolume(location,
+                               sales_volume,
+                               solution,
+                               f9100_capacity,
+                               f3100_capacity):
+
+    if sales_volume > f3100_capacity and sales_volume < f3100_capacity*2:
+        if solution["locations"][location]["freestyle3100Count"] <= 1:
+            solution["locations"][location]["freestyle3100Count"] += 1
+
+    if sales_volume > f3100_capacity*2 and sales_volume < f9100_capacity:
+        if solution["locations"][location]["freestyle9100Count"] == 0:
+            solution["locations"][location]["freestyle9100Count"] += 1
+            # solution["locations"][location]["freestyle3100Count"] -= 1
+            if solution["locations"][location]["freestyle3100Count"] == 1:
+                solution["locations"][location]["freestyle3100Count"] -= 1
+
+    if sales_volume > f9100_capacity and sales_volume < (f3100_capacity+f9100_capacity):
+        if solution["locations"][location]["freestyle9100Count"] == 1 and solution["locations"][location]["freestyle3100Count"] == 0:
+            solution["locations"][location]["freestyle3100Count"] += 1
+
+    if sales_volume > f9100_capacity*2:
+        if solution["locations"][location]["freestyle9100Count"] <= 1:
+            solution["locations"][location]["freestyle9100Count"] += 1
+        else:
+            solution["locations"][location]["freestyle3100Count"] += 1
+
+    # if sum_sales_volume*REFILL_SALES_FACTOR > 438:
+    #             solution["locations"][location]["freestyle9100Count"] += 1
+    #         elif sum_sales_volume*REFILL_SALES_FACTOR > 140 and solution["locations"][location]["freestyle9100Count"] == 0:
+    #             solution["locations"][location]["freestyle9100Count"] += 1
+    #             if solution["locations"][location]["freestyle3100Count"] == 1:
+    #                 solution["locations"][location]["freestyle3100Count"] -= 1
+    #         elif sum_sales_volume*REFILL_SALES_FACTOR > 70:
+    #             # solution["locations"][location]["freestyle3100Count"] += 1
+    #             if solution["locations"][location]["freestyle3100Count"] <= 1:
+    #                 solution["locations"][location]["freestyle3100Count"] += 1
+    #             else:
+    #                 solution["locations"][location]["freestyle3100Count"] -= 1
+    #                 solution["locations"][location]["freestyle9100Count"] += 1
 
 
 if __name__ == "__main__":
