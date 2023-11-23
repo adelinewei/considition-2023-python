@@ -243,9 +243,8 @@ def try_2(mapEntity, generalData, mapName):
     # step 1 - set machine or not
     set_machine_dict = {}
     for curr_location in mapEntity[LK.locations].values():
-
-        if curr_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
-
+        # if curr_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek] * 1:
+        if curr_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < 14:
             big_candidate_list = []
             small_candidate_list = []
             for candidate_location in mapEntity[LK.locations].values():
@@ -255,8 +254,9 @@ def try_2(mapEntity, generalData, mapName):
                     candidate_location[CK.latitude],
                     candidate_location[CK.longitude]
                 )
-                if distance < generalData[GK.willingnessToTravelInMeters]:
-                    if candidate_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
+                if distance <= generalData[GK.willingnessToTravelInMeters]:
+                    # if candidate_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
+                    if candidate_location[LK.salesVolume] * generalData[GK.refillSalesFactor] < 70:
                         small_candidate_list.append(candidate_location[LK.locationName])
                     else:
                         big_candidate_list.append(candidate_location[LK.locationName])
@@ -293,6 +293,7 @@ def try_2(mapEntity, generalData, mapName):
                 CK.latitude: loc[CK.latitude],
                 CK.longitude: loc[CK.longitude],
                 LK.footfall: loc[LK.footfall],
+                LK.footfallScale: loc[LK.footfallScale],
                 LK.salesVolume: loc[LK.salesVolume] * generalData[GK.refillSalesFactor]
             }
 
@@ -318,8 +319,14 @@ def try_2(mapEntity, generalData, mapName):
         sales_volume = loc[LK.salesVolume]
 
         if loc[LK.salesVolume] < generalData[GK.f3100Data][GK.refillCapacityPerWeek]:
-            f3_count = 1
-            f9_count = 0
+            f9_count_finall = 0
+            f3_count_finall = 1
+            max_temp_score = calculate_local_score(
+                f3_count_finall,
+                f9_count_finall,
+                generalData,
+                sales_volume
+            )
         else:
 
             f9_count = sales_volume // generalData[GK.f9100Data][GK.refillCapacityPerWeek]
@@ -330,49 +337,41 @@ def try_2(mapEntity, generalData, mapName):
             f3_count = rest_volume // generalData[GK.f3100Data][GK.refillCapacityPerWeek]
             f3_count = max_number_of_f3100 if f3_count > max_number_of_f3100 else f3_count
 
-            # if f9_count < 2 and f3_count == 2:
-            #     f9_count += 1
-            #     f3_count = 0
-            if f9_count < max_number_of_f9100:
-                # if replace n f3s by 1 f9
-                temp_score_f9 = calculate_local_score(
-                    f3_count=0,
-                    f9_count=1,
-                    generalData=generalData,
-                    sales_volume=rest_volume)
+            max_temp_score = float("inf") * -1
+            for f9_c, f3_c in [(f9_count, f3_count), (f9_count, f3_count + 1), (f9_count + 1, 0)]:
+                if f9_c > 2 or f3_c > 2:
+                    continue
+                local_score_exclude_footfall = calculate_local_score(
+                    f3_c,
+                    f9_c,
+                    generalData,
+                    sales_volume
+                )
+                max_temp_score = max(max_temp_score, local_score_exclude_footfall)
+                if max_temp_score == local_score_exclude_footfall:
+                    f9_count_finall = f9_c
+                    f3_count_finall = f3_c
 
-                # if keep setting n f3s (n <= max_number_of_f3100)
-                rest_volume = min(round(rest_volume, 4), (f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]))
-                temp_score_f3 = calculate_local_score(
-                    f3_count=f3_count,
-                    f9_count=0,
-                    generalData=generalData,
-                    sales_volume=rest_volume)
-
-                # replace n f3s by 1 f9 if it increase the local score
-                if temp_score_f9 > temp_score_f3:
-                    f9_count += 1
-                    f3_count = 0
-                else:
-                    rest_volume = min(round(rest_volume, 4), (f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek]))
-                    temp_score_f3_plus = calculate_local_score(
-                        f3_count=f3_count + 1,
-                        f9_count=0,
-                        generalData=generalData,
-                        sales_volume=rest_volume)
-                    if temp_score_f3_plus > temp_score_f3:
-                        f3_count += 1
-
-        # validation
-        local_score_exclude_footfall = calculate_local_score(f3_count, f9_count, generalData, sales_volume)
-
-        if local_score_exclude_footfall < 0:
+        # t1 = calculate_local_score(
+        #             1,
+        #             0,
+        #             generalData,
+        #             4.35
+        #         )
+        # t2 = calculate_local_score(
+        #             0,
+        #             1,
+        #             generalData,
+        #             10.55
+        #         )
+        # print(f"{loc[LK.locationName]}: {t1}, {t2}")
+        if max_temp_score < 0 and loc[LK.footfallScale] < 10:
             continue
 
         # add to solution dict
         solution[LK.locations][key] = {
-            LK.f9100Count: int(f9_count),
-            LK.f3100Count: int(f3_count),
+            LK.f9100Count: int(f9_count_finall),
+            LK.f3100Count: int(f3_count_finall),
         }
 
     return solution
@@ -383,14 +382,14 @@ def calculate_local_score(f3_count, f9_count, generalData, sales_volume):
     sales_capacity = \
         f3_count * generalData[GK.f3100Data][GK.refillCapacityPerWeek] + \
         f9_count * generalData[GK.f9100Data][GK.refillCapacityPerWeek]
-    sales = min(round(sales_volume, 4), sales_capacity)
+    sales = min(round(sales_volume, 0), sales_capacity)
 
     revenue = sales * generalData[GK.refillUnitData][GK.profitPerUnit]
     leasing_cost = \
         f3_count * generalData[GK.f3100Data][GK.leasingCostPerWeek] + \
         f9_count * generalData[GK.f9100Data][GK.leasingCostPerWeek]
 
-    earnings = revenue - leasing_cost
+    earnings = (revenue - leasing_cost) / 1000
 
     # calculate co2 saving price
     co2_savings = \
